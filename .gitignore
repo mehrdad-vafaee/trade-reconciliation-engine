@@ -1,0 +1,18 @@
+# Ignore local data files
+data/
+
+# Ignore virtual environments
+venv/
+.venv/
+__pycache__/
+*.pyc
+
+# Ignore Cloud Credentials & Secrets
+*.json
+service_account.json
+profiles.yml
+
+# Ignore local dbt execution artifacts
+dbt_project/target/
+dbt_project/dbt_packages/
+dbt_project/logs/
