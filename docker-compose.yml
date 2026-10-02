@@ -1,0 +1,39 @@
+x-spark: &spark
+  image: apache/spark:4.0.4-python3
+  volumes:
+    - ./data:/opt/data   # data lake condiviso da master e worker (raw/, staging/, ...)
+    - ./jobs:/opt/jobs   # script PySpark
+
+services:
+  spark-master:
+    <<: *spark
+    command: /opt/spark/bin/spark-class org.apache.spark.deploy.master.Master
+    ports:
+      - "8080:8080"   # Spark UI
+      - "7077:7077"
+
+  spark-worker:
+    <<: *spark
+    command: /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark-master:7077
+    environment:
+      SPARK_WORKER_CORES: 2
+      SPARK_WORKER_MEMORY: 2g
+    depends_on:
+      - spark-master
+    deploy:
+      replicas: 2
+
+  airflow:
+    image: apache/airflow:3.3.2
+    command: standalone
+    environment:
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_ALL_ADMINS: "true"   # niente login in locale
+      GOOGLE_APPLICATION_CREDENTIALS: /opt/secrets/gcp-key.json
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./data:/opt/data
+      - ./jobs:/opt/jobs
+      - ./secrets:/opt/secrets:ro   # chiave del service account BigQuery (fuori da git)
+    ports:
+      - "8081:8080"   # Airflow UI

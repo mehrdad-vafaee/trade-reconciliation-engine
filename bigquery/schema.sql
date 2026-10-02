@@ -2,12 +2,12 @@
 -- Le colonne sono NULLABLE perché i Parquet scritti da Spark sono nullable
 -- e BigQuery rifiuta il load su colonne REQUIRED. La qualità dei dati la garantisce Spark.
 
-CREATE SCHEMA IF NOT EXISTS recon OPTIONS (location = 'EU');
+CREATE SCHEMA IF NOT EXISTS trade_reconciliation_dev OPTIONS (location = 'EU');
 
 -- Righe abbinate A↔B per id, con valori validi (anche se diversi tra loro).
 -- status: MATCHED | AMOUNT_BREAK | DATE_BREAK | CLIENT_BREAK | CARD_BREAK | MERCHANT_BREAK
 --         | MULTI_BREAK (più di una colonna diversa: non dovrebbe capitare, 1 errore per riga)
-CREATE TABLE IF NOT EXISTS recon.reconciled (
+CREATE TABLE IF NOT EXISTS trade_reconciliation_dev.reconciled (
   id            INT64,
   date_a        TIMESTAMP,
   date_b        TIMESTAMP,
@@ -27,9 +27,9 @@ PARTITION BY TIMESTAMP_TRUNC(date_a, MONTH)  -- mensile: 10 anni giornalieri ≈
 CLUSTER BY status;
 
 -- Righe orfane o invalide. Valori raw come STRING perché possono non essere parsabili.
--- reason: MISSING_IN_A | MISSING_IN_B | DUPLICATE_ID | NULL_VALUE | UNPARSEABLE | OUT_OF_DOMAIN | CARD_CLIENT_MISMATCH
+-- reason: MISSING_IN_A | MISSING_IN_B | DUPLICATE_ID | NULL_VALUE | UNPARSEABLE | OUT_OF_DOMAIN
 -- Il lato di provenienza degli orfani è indicato da reason (MISSING_IN_A / MISSING_IN_B).
-CREATE TABLE IF NOT EXISTS recon.quarantine (
+CREATE TABLE IF NOT EXISTS trade_reconciliation_dev.quarantine (
   id            STRING,
   date_a        STRING,
   date_b        STRING,

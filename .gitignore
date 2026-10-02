@@ -8,6 +8,7 @@ __pycache__/
 *.pyc
 
 # Ignore Cloud Credentials & Secrets
+secrets/
 *.json
 service_account.json
 profiles.yml
