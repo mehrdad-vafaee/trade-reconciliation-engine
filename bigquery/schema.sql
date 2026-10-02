@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS recon.reconciled (
   run_id        STRING,
   loaded_at     TIMESTAMP
 )
-PARTITION BY DATE_TRUNC(date_a, MONTH)  -- mensile: 10 anni giornalieri ≈ 3600 partizioni, troppo vicino al limite di 4000
+PARTITION BY TIMESTAMP_TRUNC(date_a, MONTH)  -- mensile: 10 anni giornalieri ≈ 3600 partizioni, troppo vicino al limite di 4000
 CLUSTER BY status;
 
 -- Righe orfane o invalide. Valori raw come STRING perché possono non essere parsabili.
