@@ -3,4 +3,4 @@ USER root
 RUN apt-get update && apt-get install -y --no-install-recommends openjdk-17-jre-headless \
     && rm -rf /var/lib/apt/lists/*
 USER airflow
-RUN pip install --no-cache-dir pyspark==4.0.4   # stessa versione del cluster
+RUN pip install --no-cache-dir pyspark==4.0.4   # same version as the cluster

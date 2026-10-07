@@ -1,8 +1,8 @@
-"""Simula i due feed dei broker.
+"""Simulate the two broker feeds.
 
-A = CSV sorgente ridotto a 6 colonne (riferimento pulito).
-B = copia di A con al massimo un errore per riga; seed e peso di ogni tipo di errore cambiano a ogni run.
-Scrive anche expected_counts.json: l'esito atteso di ogni riga, usato da reconcile.py per verificarsi.
+A = source CSV reduced to 6 columns (clean reference).
+B = copy of A with at most one error per row; the seed and the weight of each error type change on every run.
+Also writes expected_counts.json: the expected outcome of every row, used by reconcile.py to check itself.
 """
 import json
 import random
@@ -15,20 +15,20 @@ from pyspark.sql import SparkSession, functions as F
 SRC = "/opt/data/source/transactions_data-selected-columns.csv"
 OUT = "/opt/data/raw"
 COLS = ["id", "date", "client_id", "card_id", "amount", "merchant_id"]
-SEED = random.randrange(2**31)  # salvato in expected_counts.json
-ERROR_RATE, ID_RATE, NULL_RATE = 0.75, 0.005, 0.02  # ID e NULL sono compresi nel 75%
+SEED = random.randrange(2**31)  # saved in expected_counts.json
+ERROR_RATE, ID_RATE, NULL_RATE = 0.75, 0.005, 0.02  # ID and NULL are included in the 75%
 
-# tipo di errore -> esito atteso (status in reconciled o reason in quarantine)
+# error type -> expected outcome (status in reconciled or reason in quarantine)
 VALUE_ERRORS = {
-    "date_jitter": "MATCHED",                # ±1-59 s, entro la tolleranza
+    "date_jitter": "MATCHED",                # ±1-59 s, within tolerance
     "date_shift": "DATE_BREAK",              # +2 min .. 3 h
-    "date_future": "OUT_OF_DOMAIN",          # +100 anni (multiplo di 4: il 29/02 resta valido)
-    "date_malformed": "UNPARSEABLE",         # formato dd/MM/yyyy HH:mm
-    "amount_rounding": "MATCHED",            # ±0.01, entro la tolleranza
+    "date_future": "OUT_OF_DOMAIN",          # +100 years (multiple of 4: Feb 29 stays valid)
+    "date_malformed": "UNPARSEABLE",         # dd/MM/yyyy HH:mm format
+    "amount_rounding": "MATCHED",            # ±0.01, within tolerance
     "amount_change": "AMOUNT_BREAK",         # ±1 .. 100
-    "amount_fat_finger": "OUT_OF_DOMAIN",    # +1.000.000
+    "amount_fat_finger": "OUT_OF_DOMAIN",    # +1,000,000
     "amount_malformed": "UNPARSEABLE",       # "#VALUE!"
-    "client_change": "CLIENT_BREAK",         # un altro client valido
+    "client_change": "CLIENT_BREAK",         # another valid client
     "client_out_of_range": "OUT_OF_DOMAIN",
     "card_change": "CARD_BREAK",
     "card_out_of_range": "OUT_OF_DOMAIN",
@@ -36,17 +36,17 @@ VALUE_ERRORS = {
     "merchant_out_of_range": "OUT_OF_DOMAIN",
 }
 NULL_ERRORS = {f"null_{c}": "NULL_VALUE" for c in COLS[1:]}
-DOMAIN_SIZE = {"client_id": 1999, "card_id": 6145, "merchant_id": 100343}  # id validi: 0 .. N-1
+DOMAIN_SIZE = {"client_id": 1999, "card_id": 6145, "merchant_id": 100343}  # valid ids: 0 .. N-1
 
 rng = random.Random(SEED)
 
 
-def split(names, total):  # un peso casuale per ogni nome, con somma total
+def split(names, total):  # a random weight for each name, summing to total
     w = {n: rng.random() for n in names}
     return {n: x / sum(w.values()) * total for n, x in w.items()}
 
 
-# probabilità di ogni tipo di errore: ID e NULL hanno quote fisse, il resto va agli errori sui valori
+# probability of each error type: ID and NULL have fixed shares, the rest goes to value errors
 WEIGHTS = {"id_shift": ID_RATE, **split(NULL_ERRORS, NULL_RATE),
            **split(VALUE_ERRORS, ERROR_RATE - ID_RATE - NULL_RATE)}
 
@@ -57,11 +57,11 @@ a = spark.read.csv(SRC, header=True).select(COLS)
 a.write.mode("overwrite").csv(f"{OUT}/feed_a", header=True)
 
 
-# Numeri casuali materializzati come colonne: ogni riga usa sempre gli stessi valori.
+# Random numbers materialized as columns: each row always uses the same values.
 b = a.select("*", *[F.rand(SEED + i).alias(n) for i, n in enumerate("ums")])
 u, m = F.col("u"), F.col("m")
 
-# u cade in uno degli intervalli [0, w1), [w1, w1+w2), ...: oltre ERROR_RATE la riga resta pulita.
+# u falls into one of the intervals [0, w1), [w1, w1+w2), ...: above ERROR_RATE the row stays clean.
 names, bounds = list(WEIGHTS), list(accumulate(WEIGHTS.values()))
 error = F.when(u < bounds[0], names[0])
 for name, bound in zip(names[1:], bounds[1:]):
@@ -86,13 +86,13 @@ def plus(c, n):
     return (F.col(c).cast("bigint") + n).cast("string")
 
 
-def other(c):  # un altro id del dominio, sempre diverso dall'originale
+def other(c):  # another id in the domain, always different from the original
     n = DOMAIN_SIZE[c]
     return ((F.col(c).cast("bigint") + 1 + (m * (n - 1)).cast("bigint")) % n).cast("string")
 
 
 mutated = {
-    "id": F.when(e == "id_shift", plus("id", 100_000_000)),  # oltre il max di A: niente collisioni
+    "id": F.when(e == "id_shift", plus("id", 100_000_000)),  # beyond A's max: no collisions
     "date": F.when(e == "date_jitter", ts(secs + sign * (1 + (m * 59).cast("int"))))
              .when(e == "date_shift", ts(secs + 120 + (m * 10_680).cast("int")))
              .when(e == "date_future", F.concat(plus("date_year", 100), F.substring("date", 5, 15)))

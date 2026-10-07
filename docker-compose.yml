@@ -1,8 +1,8 @@
 x-spark: &spark
   image: apache/spark:4.0.4-python3
   volumes:
-    - ./data:/opt/data   # data lake condiviso da master e worker (raw/, staging/, ...)
-    - ./jobs:/opt/jobs   # script PySpark
+    - ./data:/opt/data   # data lake shared by master and workers (raw/, staging/, ...)
+    - ./jobs:/opt/jobs   # PySpark scripts
 
 services:
   spark-master:
@@ -28,12 +28,12 @@ services:
     command: standalone
     environment:
       AIRFLOW__CORE__LOAD_EXAMPLES: "false"
-      AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_ALL_ADMINS: "true"   # niente login in locale
+      AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_ALL_ADMINS: "true"   # no login locally
       GOOGLE_APPLICATION_CREDENTIALS: /opt/secrets/gcp-key.json
     volumes:
       - ./dags:/opt/airflow/dags
       - ./data:/opt/data
       - ./jobs:/opt/jobs
-      - ./secrets:/opt/secrets:ro   # chiave del service account BigQuery (fuori da git)
+      - ./secrets:/opt/secrets:ro   # BigQuery service account key (kept out of git)
     ports:
       - "8081:8080"   # Airflow UI

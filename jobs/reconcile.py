@@ -1,9 +1,9 @@
-"""Riconcilia feed A e B.
+"""Reconcile feeds A and B.
 
-1. Legge i due feed come stringhe, converte i tipi e valida ogni campo.
-2. FULL OUTER JOIN su id. Le righe senza controparte vanno in quarantena.
-3. Le righe abbinate con un valore invalido vanno in quarantena, le altre vengono classificate.
-Scrive reconciled/ e quarantine/ in Parquet (un file ciascuno, per il load su BigQuery).
+1. Read both feeds as strings, cast the types and validate every field.
+2. FULL OUTER JOIN on id. Rows without a counterpart go to quarantine.
+3. Matched rows with an invalid value go to quarantine, the others are classified.
+Writes reconciled/ and quarantine/ as Parquet (one file each, for the BigQuery load).
 """
 import json
 import os
@@ -16,7 +16,7 @@ from pyspark.sql import SparkSession, Window, functions as F
 
 RAW, OUT = "/opt/data/raw", "/opt/data/output"
 FIELDS = ["date", "client_id", "card_id", "amount", "merchant_id"]
-ID_RANGES = {"client_id": (0, 1998), "card_id": (0, 6144), "merchant_id": (0, 100342)}  # dal profiling di A
+ID_RANGES = {"client_id": (0, 1998), "card_id": (0, 6144), "merchant_id": (0, 100342)}  # from profiling A
 MIN_DATE = "2010-01-01"
 MAX_AMOUNT = 50_000
 DATE_TOLERANCE_SEC = 60
@@ -24,12 +24,12 @@ AMOUNT_TOLERANCE = Decimal("0.01")
 
 spark = (SparkSession.builder.appName("reconcile")
          .config("spark.sql.session.timeZone", "UTC")
-         .config("spark.sql.parquet.outputTimestampType", "TIMESTAMP_MICROS")  # INT96 non serve a BigQuery
+         .config("spark.sql.parquet.outputTimestampType", "TIMESTAMP_MICROS")  # BigQuery does not need INT96
          .getOrCreate())
 
 
 def load(side):
-    """Feed tipizzato + valori raw + primo problema trovato (struct reason/column, null se la riga è valida)."""
+    """Typed feed + raw values + first problem found (reason/column struct, null if the row is valid)."""
     raw = spark.read.csv(f"{RAW}/feed_{side}", header=True)
     typed = {
         "id": F.col("id").try_cast("bigint"),
@@ -58,7 +58,7 @@ def load(side):
                       first.alias(f"issue_{side}"))
 
 
-def bad_id(side):  # id nullo, invalido o duplicato: la riga non può partecipare al join
+def bad_id(side):  # null, invalid or duplicate id: the row cannot take part in the join
     return F.coalesce(F.col(f"issue_{side}.column") == f"id_{side}", F.lit(False))
 
 
@@ -104,16 +104,16 @@ pairs = [f"{c}_{s}" for c in FIELDS for s in "ab"]
          "reason", "reason_column", "run_id", "loaded_at")
  .repartition(1).write.mode("overwrite").parquet(f"{OUT}/quarantine"))
 
-# Verifica: i conteggi per status/reason devono coincidere con quelli attesi dal generatore.
+# Check: counts per status/reason must match those expected by the generator.
 actual = {r[0]: r[1] for t, c in (("reconciled", "status"), ("quarantine", "reason"))
           for r in spark.read.parquet(f"{OUT}/{t}").groupBy(c).count().collect()}
 print(f"run_id {run_id}")
 expected_path = f"{RAW}/expected_counts.json"
 expected = json.load(open(expected_path))["expected"] if os.path.exists(expected_path) else {}
-print(f"{'esito':<16}{'trovati':>12}{'attesi':>12}")
+print(f"{'outcome':<16}{'found':>12}{'expected':>12}")
 for label in sorted(actual.keys() | expected.keys()):
-    ok = "" if not expected or actual.get(label) == expected.get(label) else "  <-- DIVERSO"
+    ok = "" if not expected or actual.get(label) == expected.get(label) else "  <-- MISMATCH"
     print(f"{label:<16}{actual.get(label, 0):>12,}{expected.get(label, 0):>12,}{ok}")
 spark.stop()
 if expected and actual != expected:
-    sys.exit("Conteggi diversi da quelli attesi")
+    sys.exit("Counts differ from expected")

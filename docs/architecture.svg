@@ -13,16 +13,16 @@
   </style>
 
   <rect width="1280" height="760" fill="#fff"/>
-  <text x="640" y="42" text-anchor="middle" font-size="24" font-weight="bold" fill="#111">Trade Reconciliation Engine — architettura</text>
+  <text x="640" y="42" text-anchor="middle" font-size="24" font-weight="bold" fill="#111">Trade Reconciliation Engine — architecture</text>
 
   <!-- Docker Compose -->
   <rect x="30" y="70" width="880" height="660" rx="14" fill="#f7f9fc" stroke="#7a8aa0" stroke-width="2" stroke-dasharray="8 6"/>
-  <text x="50" y="96" class="s" font-weight="bold">docker compose (locale)</text>
+  <text x="50" y="96" class="s" font-weight="bold">docker compose (local)</text>
 
   <!-- Airflow -->
   <rect x="60" y="110" width="380" height="310" rx="10" fill="#e6f4f1" stroke="#017cee" stroke-width="2"/>
   <text x="80" y="140" class="t">Airflow 3.3 (standalone)</text>
-  <text x="80" y="160" class="s">UI :8081 · DAG trade_reconciliation · trigger manuale</text>
+  <text x="80" y="160" class="s">UI :8081 · DAG trade_reconciliation · manual trigger</text>
   <g>
     <rect x="90" y="180" width="320" height="44" rx="6" fill="#fff" stroke="#017cee"/>
     <text x="250" y="207" text-anchor="middle" class="m">generate_feeds  (spark-submit)</text>
@@ -33,8 +33,8 @@
     <path d="M250,224 V248" class="arrow"/>
     <path d="M250,294 V318" class="arrow"/>
   </g>
-  <text x="80" y="395" class="s">Driver Spark in client mode (JDK 17 + pyspark 4.0.4)</text>
-  <text x="80" y="411" class="s">Chiave service account GCP da ./secrets (read-only)</text>
+  <text x="80" y="395" class="s">Spark driver in client mode (JDK 17 + pyspark 4.0.4)</text>
+  <text x="80" y="411" class="s">GCP service account key from ./secrets (read-only)</text>
 
   <!-- Spark -->
   <rect x="490" y="110" width="390" height="310" rx="10" fill="#fdf0e6" stroke="#e25a1c" stroke-width="2"/>
@@ -58,26 +58,26 @@
 
   <!-- Volume dati -->
   <rect x="60" y="460" width="820" height="250" rx="10" fill="#f1f1f1" stroke="#888" stroke-width="2"/>
-  <text x="80" y="490" class="t">Volume condiviso  ./data → /opt/data</text>
-  <text x="80" y="510" class="s">montato da Airflow, master e worker (insieme a ./jobs → /opt/jobs)</text>
+  <text x="80" y="490" class="t">Shared volume  ./data → /opt/data</text>
+  <text x="80" y="510" class="s">mounted by Airflow, master and workers (along with ./jobs → /opt/jobs)</text>
 
   <rect x="90" y="530" width="220" height="150" rx="6" fill="#fff" stroke="#888"/>
   <text x="105" y="556" class="m" font-weight="bold">source/</text>
   <text x="105" y="580" class="s">transactions_data-</text>
   <text x="105" y="597" class="s">selected-columns.csv</text>
-  <text x="105" y="624" class="s">dataset sorgente</text>
+  <text x="105" y="624" class="s">source dataset</text>
 
   <rect x="350" y="530" width="240" height="150" rx="6" fill="#fff" stroke="#888"/>
   <text x="365" y="556" class="m" font-weight="bold">raw/</text>
-  <text x="365" y="580" class="s">feed_a/  CSV pulito (broker A)</text>
-  <text x="365" y="600" class="s">feed_b/  CSV con errori (broker B)</text>
+  <text x="365" y="580" class="s">feed_a/  clean CSV (broker A)</text>
+  <text x="365" y="600" class="s">feed_b/  CSV with errors (broker B)</text>
   <text x="365" y="620" class="s">expected_counts.json</text>
 
   <rect x="630" y="530" width="225" height="150" rx="6" fill="#fff" stroke="#888"/>
   <text x="645" y="556" class="m" font-weight="bold">output/</text>
   <text x="645" y="580" class="s">reconciled/  Parquet</text>
   <text x="645" y="600" class="s">quarantine/  Parquet</text>
-  <text x="645" y="620" class="s">(un file ciascuno)</text>
+  <text x="645" y="620" class="s">(one file each)</text>
 
   <path d="M310,605 H348" class="arrow"/>
   <text x="329" y="592" text-anchor="middle" class="l">generate</text>
@@ -86,7 +86,7 @@
 
   <!-- Spark <-> dati -->
   <path d="M685,372 V458" class="arrow" marker-start="url(#a)"/>
-  <text x="695" y="445" class="l">lettura / scrittura</text>
+  <text x="695" y="445" class="l">read / write</text>
 
   <!-- BigQuery -->
   <rect x="950" y="300" width="300" height="410" rx="10" fill="#e8f0fe" stroke="#4285f4" stroke-width="2"/>
@@ -95,15 +95,15 @@
 
   <rect x="975" y="375" width="250" height="140" rx="6" fill="#fff" stroke="#4285f4"/>
   <text x="990" y="400" class="m" font-weight="bold">reconciled</text>
-  <text x="990" y="424" class="s">righe abbinate A↔B per id</text>
+  <text x="990" y="424" class="s">rows matched A↔B by id</text>
   <text x="990" y="446" class="s">status: MATCHED / *_BREAK</text>
-  <text x="990" y="468" class="s">partition: mese di date_a</text>
+  <text x="990" y="468" class="s">partition: month of date_a</text>
   <text x="990" y="490" class="s">cluster: status</text>
 
   <rect x="975" y="540" width="250" height="140" rx="6" fill="#fff" stroke="#4285f4"/>
   <text x="990" y="565" class="m" font-weight="bold">quarantine</text>
-  <text x="990" y="589" class="s">orfani, duplicati, invalidi</text>
-  <text x="990" y="611" class="s">valori raw come STRING</text>
+  <text x="990" y="589" class="s">orphans, duplicates, invalid</text>
+  <text x="990" y="611" class="s">raw values as STRING</text>
   <text x="990" y="633" class="s">reason + reason_column</text>
   <text x="990" y="655" class="s">cluster: reason</text>
 
