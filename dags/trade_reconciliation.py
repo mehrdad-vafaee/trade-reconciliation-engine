@@ -1,8 +1,7 @@
-"""Pipeline completa: genera i feed, li riconcilia su Spark, carica l'esito su BigQuery."""
+"""Complete trade reconciliation DAG: generate feeds, reconcile, load into BigQuery."""
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.sdk import DAG
 
-# Il driver gira qui (client mode), gli executor sui worker: tutti vedono /opt/data e /opt/jobs.
 SUBMIT = "spark-submit --master spark://spark-master:7077 --conf spark.driver.host=airflow /opt/jobs/"
 
 with DAG("trade_reconciliation", schedule=None, catchup=False):
