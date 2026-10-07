@@ -1,19 +1,21 @@
 """Simula i due feed dei broker.
 
 A = CSV sorgente ridotto a 6 colonne (riferimento pulito).
-B = copia di A con al massimo un errore per riga.
+B = copia di A con al massimo un errore per riga; seed e peso di ogni tipo di errore cambiano a ogni run.
 Scrive anche expected_counts.json: l'esito atteso di ogni riga, usato da reconcile.py per verificarsi.
 """
 import json
+import random
 from collections import Counter
 from decimal import Decimal
+from itertools import accumulate
 
 from pyspark.sql import SparkSession, functions as F
 
 SRC = "/opt/data/source/transactions_data-selected-columns.csv"
 OUT = "/opt/data/raw"
 COLS = ["id", "date", "client_id", "card_id", "amount", "merchant_id"]
-SEED = 42
+SEED = random.randrange(2**31)  # salvato in expected_counts.json
 ERROR_RATE, ID_RATE, NULL_RATE = 0.75, 0.005, 0.02  # ID e NULL sono compresi nel 75%
 
 # tipo di errore -> esito atteso (status in reconciled o reason in quarantine)
@@ -36,6 +38,18 @@ VALUE_ERRORS = {
 NULL_ERRORS = {f"null_{c}": "NULL_VALUE" for c in COLS[1:]}
 DOMAIN_SIZE = {"client_id": 1999, "card_id": 6145, "merchant_id": 100343}  # id validi: 0 .. N-1
 
+rng = random.Random(SEED)
+
+
+def split(names, total):  # un peso casuale per ogni nome, con somma total
+    w = {n: rng.random() for n in names}
+    return {n: x / sum(w.values()) * total for n, x in w.items()}
+
+
+# probabilità di ogni tipo di errore: ID e NULL hanno quote fisse, il resto va agli errori sui valori
+WEIGHTS = {"id_shift": ID_RATE, **split(NULL_ERRORS, NULL_RATE),
+           **split(VALUE_ERRORS, ERROR_RATE - ID_RATE - NULL_RATE)}
+
 spark = (SparkSession.builder.appName("generate_feeds")
          .config("spark.sql.session.timeZone", "UTC").getOrCreate())
 
@@ -43,16 +57,16 @@ a = spark.read.csv(SRC, header=True).select(COLS)
 a.write.mode("overwrite").csv(f"{OUT}/feed_a", header=True)
 
 
-def pick(names, r):
-    return F.element_at(F.array(*map(F.lit, names)), (r * len(names)).cast("int") + 1)
-
-
 # Numeri casuali materializzati come colonne: ogni riga usa sempre gli stessi valori.
-b = a.select("*", *[F.rand(SEED + i).alias(n) for i, n in enumerate("ukms")])
-u, k, m = F.col("u"), F.col("k"), F.col("m")
-b = b.withColumn("error", F.when(u < ID_RATE, "id_shift")
-                 .when(u < ID_RATE + NULL_RATE, pick(list(NULL_ERRORS), k))
-                 .when(u < ERROR_RATE, pick(list(VALUE_ERRORS), k)))
+b = a.select("*", *[F.rand(SEED + i).alias(n) for i, n in enumerate("ums")])
+u, m = F.col("u"), F.col("m")
+
+# u cade in uno degli intervalli [0, w1), [w1, w1+w2), ...: oltre ERROR_RATE la riga resta pulita.
+names, bounds = list(WEIGHTS), list(accumulate(WEIGHTS.values()))
+error = F.when(u < bounds[0], names[0])
+for name, bound in zip(names[1:], bounds[1:]):
+    error = error.when(u < bound, name)
+b = b.withColumn("error", error)
 
 e = F.col("error")
 sign = F.when(F.col("s") < 0.5, -1).otherwise(1)
@@ -107,7 +121,10 @@ for err, n in errors.items():
         expected[label] += n
 
 with open(f"{OUT}/expected_counts.json", "w") as f:
-    json.dump({"rows": sum(errors.values()), "errors": errors, "expected": expected}, f, indent=2)
+    json.dump({"seed": SEED, "weights": WEIGHTS, "rows": sum(errors.values()), "errors": errors,
+               "expected": expected}, f, indent=2)
+
+print(f"seed {SEED}")
 
 for err, n in sorted(errors.items()):
     print(f"{err:<24}{n:>12,}")
