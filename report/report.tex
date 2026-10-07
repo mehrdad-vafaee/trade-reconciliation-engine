@@ -82,13 +82,15 @@ Each output is written as a single Parquet file, which BigQuery loads in one job
 In BigQuery, \code{reconciled} is partitioned by month and clustered by \code{status}, and \code{quarantine} is clustered by \code{reason}, so the dashboard queries scan only the blocks they need.
 
 \section{Results}
+The pipeline produces a dashboard in Looker Studio (Figure~\ref{fig:dash}).
+Looker Studio provides functionalities to generate insights from your data.
+This dashboard shows the KPIs of the system, which give an overview of the most important metrics.
+Total exposure is the sum over all pairs of the absolute difference between the amounts reported by A and B.
+The dashboard also shows the top 10 total exposures for clients, break type distribution, as well as a summary table of the quarantine table generated during data processing.
+
 For every run, the reconciliation job compares the number of rows in each status and quarantine reason with the counts recorded by the generator, and fails if any of them differs.
 Since a failed check stops the DAG before the loading step, every run that reaches the dashboard has passed it.
 On our local machine, the whole pipeline on the 13.3 million rows takes about 12 minutes, from starting the containers to the updated dashboard.
-
-The results are presented in a Looker Studio dashboard (Figure~\ref{fig:dash}).
-The top row shows the main KPIs: total reconciled pairs, matched pairs, breaks and total exposure, defined as the sum over all pairs of the absolute difference between the amounts reported by A and B.
-Below, the dashboard shows the ten clients with the highest exposure, the distribution of break types, and a table of the quarantined rows with the reason and the column that caused them.
 
 \begin{figure}[h]
   \centering
