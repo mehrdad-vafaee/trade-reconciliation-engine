@@ -6,6 +6,7 @@
 \usepackage{xcolor}
 \usepackage{enumitem}
 \usepackage{caption}
+\usepackage[compact]{titlesec}
 \usepackage[hidelinks]{hyperref}
 \setlist{nosep,leftmargin=*}
 \captionsetup{font=small}
@@ -16,7 +17,7 @@
 \newcommand{\code}[1]{\texttt{#1}}
 
 \title{\vspace{-1.5cm}Automated Post-Trade Reconciliation \& Exception Analytics Engine}
-\author{Sara Patano, Alberto Tonni, Mehrdad Vafaee\\\small Data-Intensive Computing}
+\author{Sara Patano, Alberto Tonni, Mehrdad Vafaee\\\small Data-Intensive Computing\\\small Code: \url{https://github.com/mehrdad-vafaee/trade-reconciliation-engine}}
 \date{}
 
 \begin{document}
@@ -33,7 +34,7 @@ The pipeline runs on Apache Spark and is orchestrated by Apache Airflow.
 The results are loaded into Google BigQuery and explored in a Looker Studio dashboard.
 
 \section{Dataset}
-The pipeline starts from the \emph{Financial Transactions Dataset} available on Kaggle.
+The pipeline starts from the \emph{Financial Transactions Dataset: Analytics} available on Kaggle\footnote{\url{https://www.kaggle.com/datasets/computingvictor/transactions-fraud-datasets}}.
 We use its \code{transactions\_data.csv} file, which contains 13,305,915 card transactions with 12 attributes, and keep the six needed for matching and data-quality checks: \code{id}, \code{date}, \code{client\_id}, \code{card\_id}, \code{amount} and \code{merchant\_id}.
 The \code{id} uniquely identifies a transaction, while the other fields record when it happened, the client and card involved, the amount and the merchant.
 
@@ -91,7 +92,7 @@ Below, the dashboard shows the ten clients with the highest exposure, the distri
 
 \begin{figure}[h]
   \centering
-  \includegraphics[width=0.75\textwidth]{dashboard.png}
+  \includegraphics[width=0.7\textwidth]{dashboard.png}
   \caption{Dashboard produced in Looker Studio.}
   \label{fig:dash}
 \end{figure}
@@ -106,7 +107,7 @@ The pipeline runs as a batch on demand; the next step is a daily schedule fed by
 
 \textbf{Setup}
 \begin{enumerate}
-  \item Place the dataset in \code{data/source/transactions\_data-selected-columns.csv}.
+  \item Save the Kaggle file \code{transactions\_data.csv} as\\\code{data/source/transactions\_data-selected-columns.csv}.
   \item Place the service account key in \code{secrets/gcp-key.json}.
   \item In the BigQuery console, run \code{bigquery/schema.sql} to create the tables, then \code{bigquery/views.sql} to create the views.
 \end{enumerate}
