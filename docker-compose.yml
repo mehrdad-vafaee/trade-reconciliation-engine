@@ -24,7 +24,7 @@ services:
       replicas: 2
 
   airflow:
-    image: apache/airflow:3.3.2
+    build: ./airflow
     command: standalone
     environment:
       AIRFLOW__CORE__LOAD_EXAMPLES: "false"
